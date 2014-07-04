@@ -21,20 +21,24 @@
 {
     [super viewDidLoad];
 
+    // Set up a map view as usual.
     NSURL *basemapURL = [NSURL URLWithString:kGreyURL];
     AGSTiledMapServiceLayer *basemapLayer = [AGSTiledMapServiceLayer tiledMapServiceLayerWithURL:basemapURL];
     [self.mapView addMapLayer:basemapLayer];
 
+    [self.mapView enableWrapAround];
     self.mapView.allowRotationByPinching = YES;
-    self.northArrow.mapViewForNorthArrow = self.mapView;
-    self.northFinger.mapViewForNorthArrow = self.mapView;
-
+    
     AGSEnvelope *initialEnvelope = [AGSEnvelope envelopeWithXmin:-13995275
                                                             ymin:-80703
                                                             xmax:-7733554
                                                             ymax:8920520
                                                 spatialReference:[AGSSpatialReference spatialReferenceWithWKID:102100]];
     [self.mapView zoomToEnvelope:initialEnvelope animated:YES];
+
+    // Set up the North Arrows. This is all you have to do.
+    self.northArrow.mapViewForNorthArrow = self.mapView;
+    self.northFinger.mapViewForNorthArrow = self.mapView;
 }
 
 - (IBAction)randomAngleTapped:(id)sender {
