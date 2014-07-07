@@ -19,11 +19,12 @@
 @end
 
 @implementation UIImageView (AGSNorthArrow)
-#pragma mark - Property setters/getters
+#pragma mark - MapView Property
 -(void)setMapViewForNorthArrow:(AGSMapView *)mapView
 {
     AGSMapView *oldMapView = self.mapViewForNorthArrow;
     if (oldMapView) {
+        // We're watching a new map now. Let's forget the old one.
         [oldMapView removeObserver:self forKeyPath:kAngleKey];
         [oldMapView removeObserver:self forKeyPath:kAnimatingKey];
     }
@@ -32,7 +33,7 @@
     self.userInteractionEnabled = NO;
     self.contentMode = UIViewContentModeScaleAspectFit;
 
-    // Keep a weak reference to our AGSMapView
+    // Keep a weak reference to the AGSMapView (or nil)
     objc_setAssociatedObject(self, kMapViewKey, mapView, OBJC_ASSOCIATION_ASSIGN);
     
     if (mapView) {
@@ -52,6 +53,7 @@
     return objc_getAssociatedObject(self, kMapViewKey);
 }
 
+#pragma mark - Timer Property for tracking rotation animation
 -(void)setTimer:(NSTimer *)timer
 {
     if (timer) {
@@ -72,10 +74,12 @@
 -(void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
     if ([keyPath isEqualToString:kAngleKey]) {
+        // Simple. The map view's rotation was set directly.
         [self setNorthArrowAngle:(double)[object rotationAngle]];
     } else if ([keyPath isEqualToString:kAnimatingKey]) {
+        // In this case, we're animating to a new rotation. Let's track it and update as we can.
         if (self.mapViewForNorthArrow.animating) {
-            // If we're animating, let's update the north arrow as we animate
+            // We'll use a timer to update the north arrow as the map animates.
             self.timer = [NSTimer scheduledTimerWithTimeInterval:0
                                                           target:self
                                                         selector:@selector(checkRotation:)
@@ -88,12 +92,13 @@
     }
 }
 
-#pragma mark - Update North Arrow
+#pragma mark - Timer event for use during animation
 -(void)checkRotation:(NSTimer*)timer
 {
     [self setNorthArrowAngle:self.mapViewForNorthArrow.rotationAngle];
 }
 
+#pragma mark - Rotate ourselves to match the mapView
 -(void)setNorthArrowAngle:(double)mapAngle
 {
     self.transform = CGAffineTransformMakeRotation(-M_PI * mapAngle / 180);
