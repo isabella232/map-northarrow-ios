@@ -36,15 +36,13 @@
     // Keep a weak reference to the AGSMapView (or nil)
     objc_setAssociatedObject(self, kMapViewKey, mapView, OBJC_ASSOCIATION_ASSIGN);
     
-    if (mapView) {
-        // Show North
-        [self setNorthArrowAngle:mapView.rotationAngle];
+    // Show North
+    [self rotateNorthArrow];
 
-        // Track rotation, either through interaction or animating with AGSMapView::setRotationAngle
+    if (mapView) {
+        // Track rotation, either through interaction or animation
         [mapView addObserver:self forKeyPath:kAngleKey options:NSKeyValueObservingOptionNew context:nil];
         [mapView addObserver:self forKeyPath:kAnimatingKey options:NSKeyValueObservingOptionNew context:nil];
-    } else {
-        [self setNorthArrowAngle:0];
     }
 }
 
@@ -53,39 +51,21 @@
     return objc_getAssociatedObject(self, kMapViewKey);
 }
 
-#pragma mark - Timer Property for tracking rotation animation
--(void)setTimer:(NSTimer *)timer
-{
-    if (timer) {
-        // Strong reference
-        objc_setAssociatedObject(self, kTimerKey, timer, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    } else {
-        // Weak reference to nil
-        objc_setAssociatedObject(self, kTimerKey, nil, OBJC_ASSOCIATION_ASSIGN);
-    }
-}
-
--(NSTimer *)timer
-{
-    return objc_getAssociatedObject(self, kTimerKey);
-}
-
 #pragma mark - KVO Observer
 -(void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
     if ([keyPath isEqualToString:kAngleKey]) {
         // Simple. The map view's rotation was set directly.
-        [self setNorthArrowAngle:(double)[object rotationAngle]];
+        [self rotateNorthArrow];
     } else if ([keyPath isEqualToString:kAnimatingKey]) {
         // In this case, we're animating to a new rotation. Let's track it and update as we can.
         if (self.mapViewForNorthArrow.animating) {
-            // We'll use a timer to update the north arrow as the map animates.
-            self.timer = [NSTimer scheduledTimerWithTimeInterval:0
-                                                          target:self
+            // START ANIMATING: We'll use a timer to update the north arrow as the map animates.
+            self.timer = [NSTimer scheduledTimerWithTimeInterval:0 target:self
                                                         selector:@selector(checkRotation:)
                                                         userInfo:nil repeats:YES];
         } else if (self.timer) {
-            // Finished animating. Stop updating on a timer.
+            // STOP ANIMATING: Clear the timer.
             [self.timer invalidate];
             self.timer = nil;
         }
@@ -95,12 +75,30 @@
 #pragma mark - Timer event for use during animation
 -(void)checkRotation:(NSTimer*)timer
 {
-    [self setNorthArrowAngle:self.mapViewForNorthArrow.rotationAngle];
+    [self rotateNorthArrow];
 }
 
 #pragma mark - Rotate ourselves to match the mapView
--(void)setNorthArrowAngle:(double)mapAngle
+-(void)rotateNorthArrow
 {
-    self.transform = CGAffineTransformMakeRotation(-M_PI * mapAngle / 180);
+    if (self.mapViewForNorthArrow) {
+        // We can't just transform the view, because of Auto Layout Constraints.
+        // But transforming the view's layer is just fine and dandy.
+        double angle = self.mapViewForNorthArrow.rotationAngle * M_PI / 180;
+        self.layer.transform = CATransform3DMakeRotation(angle, 0, 0, -1);
+    } else {
+        self.layer.transform = CATransform3DIdentity;
+    }
+}
+
+#pragma mark - Timer Property for tracking rotation animation
+-(void)setTimer:(NSTimer *)timer
+{
+    objc_setAssociatedObject(self, kTimerKey, timer, timer?OBJC_ASSOCIATION_RETAIN_NONATOMIC:OBJC_ASSOCIATION_ASSIGN);
+}
+
+-(NSTimer *)timer
+{
+    return objc_getAssociatedObject(self, kTimerKey);
 }
 @end
