@@ -10,5 +10,5 @@
 #import <ArcGIS/ArcGIS.h>
 
 @interface UIImageView (AGSNorthArrow)
-@property (nonatomic, weak) AGSMapView *mapViewForNorthArrow;
+@property (nonatomic, weak) IBOutlet AGSMapView *mapViewForNorthArrow;
 @end
